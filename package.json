@@ -1,0 +1,49 @@
+{
+  "name": "dont-forget-about-lily-story",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsc-watch --noClear --onSuccess \"node build/index.js\"",
+    "lint": "eslint src --fix",
+    "prettier": "prettier --write src",
+    "start": "node dist/index.js",
+    "play": "tsc-watch --onSuccess \"node build/play.js\"",
+    "server": "tsc-watch --onSuccess \"node build/server.js\"",
+    "test": "jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@apollo/server": "^4.1.1",
+    "glob": "^8.0.3",
+    "graphql": "^16.6.0",
+    "gray-matter": "^4.0.3",
+    "marked": "^4.1.1",
+    "redis": "^4.5.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.0.0",
+    "@types/inquirer": "^8.2.4",
+    "@types/jest": "^29.2.0",
+    "@types/marked": "^4.0.7",
+    "@types/node": "^18.11.0",
+    "@types/uuid": "^8.3.4",
+    "@typescript-eslint/eslint-plugin": "^5.40.1",
+    "@typescript-eslint/parser": "^5.40.1",
+    "eslint": "^8.25.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-config-standard-with-typescript": "^23.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-n": "^15.3.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-promise": "^6.1.0",
+    "inquirer": "^8.2.4",
+    "jest": "^29.2.1",
+    "prettier": "^2.7.1",
+    "ts-jest": "^29.0.3",
+    "tsc-watch": "^5.0.3",
+    "typescript": "^4.8.4"
+  }
+}
