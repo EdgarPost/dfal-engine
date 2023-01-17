@@ -1,6 +1,12 @@
 import { Answers } from 'inquirer';
-import type { Node, NodeId, NodeScenario, NodeSetState } from '../../types';
-import { idNodes } from '../markdownToNode';
+import { redisClient, UUID } from '../../server';
+import type {
+  Node,
+  NodeId,
+  NodeScenario,
+  NodeSetState,
+  NodeState,
+} from '../../types';
 
 export const INTERNAL_CURRENT_TOPIC: string = '__INTERNAL__currentTopic';
 export const INTERNAL_CONTINUE_CONVERSATION: string =
@@ -9,40 +15,95 @@ export const INTERNAL_EXIT_CONVERSATION: string =
   '__INTERNAL__exitConversation';
 export const INTERNAL_PREVIOUS_CARD: string = '__INTERNAL__previousCard';
 
-export const getState = (node: Node): Record<string, unknown> => {
-  const state: Record<NodeId, Record<string, unknown>> = {
-    global: {},
-    current: node.state,
-  };
+export const getNodeState = async (
+  gameId: UUID,
+  nodeId: UUID,
+  defaultState?: NodeState
+): Promise<NodeState> => {
+  const rawState = await redisClient.HGET('state', `${gameId}_${nodeId}`);
 
-  idNodes.forEach((node: Node) => {
-    if (node.id !== undefined) {
-      state.global[node.id] = node.state;
+  if (typeof rawState !== 'string') {
+    if (defaultState !== null && defaultState !== undefined) {
+      await saveNodeState(gameId, nodeId, defaultState);
+
+      return defaultState;
     }
-  });
 
-  return state;
+    return {};
+  }
+
+  return JSON.parse(rawState);
 };
 
-export const updateState = (
+export const getGlobalState = async (gameId: UUID): Promise<NodeState> => {
+  const rawState = await redisClient.HGET('state', `${gameId}_global`);
+
+  if (typeof rawState !== 'string') {
+    throw new Error('Unable to find global state');
+  }
+
+  return JSON.parse(rawState);
+};
+
+export const saveNodeState = async (
+  gameId: UUID,
+  nodeId: UUID,
+  state: NodeState
+): Promise<boolean> => {
+  await redisClient.HSET('state', `${gameId}_${nodeId}`, JSON.stringify(state));
+
+  return true;
+};
+
+export const saveGlobalState = async (
+  gameId: UUID,
+  state: NodeState
+): Promise<boolean> => {
+  await redisClient.HSET('state', `${gameId}_global`, JSON.stringify(state));
+
+  return true;
+};
+
+export const setPreviousNode = async (
+  gameId: UUID,
+  playerId: UUID,
+  nodeId: UUID): Promise<boolean> => {
+  await redisClient.HSET('previous_node', `${gameId}_${playerId}`, nodeId);
+
+  return true;
+}
+
+export const retrievePreviousNode = async (gameId: UUID, playerId: UUID): Promise<UUID | undefined> => {
+  const rawState = await redisClient.HGET('previous_node', `${gameId}_${playerId}`);
+
+  // cleanup
+  await redisClient.HDEL('previous_node', `${gameId}_${playerId}`);
+
+  return rawState;
+}
+
+export const updateState = async (
+  gameId: UUID,
   node: Node,
   currentScenario: NodeScenario,
-  answers: Answers
-): void => {
-  const state = node.state;
+  givenAnswer?: Answers
+): Promise<void> => {
+  const state = await getNodeState(gameId, node.id, node.state);
   const setStates = [
     ...node.content,
     { type: 'set-state', content: currentScenario.setStates },
   ].filter((c) => c.type === 'set-state');
 
-  if (node.type === 'Conversation') {
-    if (answers.action.action === INTERNAL_EXIT_CONVERSATION) {
+  if (node.type === 'Conversation' && givenAnswer !== undefined) {
+    if (givenAnswer.action.action === INTERNAL_EXIT_CONVERSATION) {
       state[INTERNAL_CURRENT_TOPIC] = null;
-    } else if (answers.action.action === INTERNAL_CONTINUE_CONVERSATION) {
+    } else if (givenAnswer.action.action === INTERNAL_CONTINUE_CONVERSATION) {
       state[INTERNAL_CURRENT_TOPIC] = null;
     } else {
-      state[INTERNAL_CURRENT_TOPIC] = answers.action;
+      state[INTERNAL_CURRENT_TOPIC] = givenAnswer.action;
     }
+
+    await saveNodeState(gameId, node.id, state);
   }
 
   for (const setState of setStates) {
@@ -60,7 +121,9 @@ export const updateState = (
       let newValue;
 
       const nodeState =
-        nodeId !== undefined ? (idNodes.get(nodeId) as Node).state : node.state;
+        nodeId !== undefined
+          ? await getNodeState(gameId, nodeId)
+          : await getNodeState(gameId, node.id);
 
       if (right !== undefined) {
         left = (
@@ -95,6 +158,8 @@ export const updateState = (
       }
 
       nodeState[variableName] = newValue;
+
+      await saveNodeState(gameId, nodeId ?? node.id, nodeState);
     }
   }
 };

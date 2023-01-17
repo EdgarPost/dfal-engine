@@ -1,6 +1,6 @@
 import { marked } from 'marked';
 import matter from 'gray-matter';
-import { Node, NodeContents, NodeId } from '../../types';
+import { Node, NodeContents, NodeId, NodeItem, NodeTitle } from '../../types';
 import { tokensToCardNode } from '../tokensToNode';
 import { readFile } from '../readFile';
 import { INTERNAL_CURRENT_TOPIC } from '../updateState';
@@ -46,8 +46,11 @@ export const markdownToNode = (markdown: string): Node => {
     state[INTERNAL_CURRENT_TOPIC] = null;
   }
 
+  const alternativeId = (content.find((c) => c.type === 'title') as NodeItem)
+    .content;
+
   return {
-    id,
+    id: id !== undefined ? id : alternativeId,
     type,
     state,
     content,

@@ -44,7 +44,7 @@ export interface NodeScenario {
 export type NodeState = Record<string, unknown>;
 
 export interface Node {
-  id: NodeId | undefined;
+  id: NodeId;
   type: NodeType;
   state: NodeState;
   content: NodeContents;

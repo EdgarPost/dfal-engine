@@ -1,3 +1,4 @@
+import { UUID } from '../../server';
 import type {
   Node,
   NodeId,
@@ -6,13 +7,13 @@ import type {
   NodeState,
   ScenarioAction,
 } from '../../types';
-import { idNodes } from '../markdownToNode';
-import { INTERNAL_CURRENT_TOPIC } from '../updateState';
+import { getNodeState, INTERNAL_CURRENT_TOPIC } from '../updateState';
 
-export const includeScenario = (
+export const includeScenario = async (
   scenario: NodeScenario,
-  state: NodeState
-): boolean => {
+  state: NodeState,
+  gameId: UUID
+): Promise<boolean> => {
   let conditionsMet = 0;
   for (const condition of scenario.conditions) {
     let { left, operator, right } = condition;
@@ -26,8 +27,10 @@ export const includeScenario = (
       left = variableParts[1];
     }
 
-    const nodeState =
-      nodeId !== undefined ? (idNodes.get(nodeId) as Node).state : state;
+    let nodeState = state;
+    if (nodeId !== undefined) {
+      nodeState = await getNodeState(nodeId, gameId);
+    }
 
     left = (left in nodeState ? nodeState[left] : left) as number | string;
     right = (
@@ -88,7 +91,7 @@ export const getScenarioByTitle = (
   );
 };
 
-export const getScenario = (node: Node): NodeScenario | undefined => {
+export const getScenario = async (node: Node, gameId: UUID): Promise<NodeScenario | undefined> => {
   const state = node.state;
   const scenarios = node.content.filter((c) => c.type === 'scenario');
 
@@ -109,9 +112,10 @@ export const getScenario = (node: Node): NodeScenario | undefined => {
       continue;
     }
 
-    const doIncludeScenario = includeScenario(
+    const doIncludeScenario = await includeScenario(
       scenario.content as NodeScenario,
-      state
+      state,
+      gameId
     );
 
     if (doIncludeScenario) {
